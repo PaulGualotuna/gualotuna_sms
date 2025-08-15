@@ -1,4 +1,4 @@
-```html
+html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -415,13 +415,8 @@
         </div>
         
         <div class="form-group">
-          <label for="telefono" class="required-field">17. Teléfono de contacto</label>
-          <input type="tel" id="telefono" name="telefono" required placeholder="Ej: 0991234567">
-        </div>
-        
-        <div class="form-group">
-          <label for="whatsapp-number" class="required-field">17b. Teléfono de WhatsApp para enviar el reporte</label>
-          <input type="tel" id="whatsapp-number" name="whatsapp-number" required placeholder="Ej: +593991234567">
+          <label for="telefono" class="required-field">17. Teléfono de contacto (se usará para enviar el reporte por SMS)</label>
+          <input type="tel" id="telefono" name="telefono" required placeholder="Ej: +593991234567">
         </div>
         
         <div class="form-group">
@@ -452,8 +447,8 @@
         <button type="button" class="btn" id="generarPdfBtn">
           <span id="pdfBtnText">Generar PDF</span>
         </button>
-        <button type="button" class="btn btn-secondary" id="enviarWhatsappBtn">
-          <span id="whatsappBtnText">Enviar por WhatsApp</span>
+        <button type="button" class="btn btn-secondary" id="enviarSmsBtn">
+          <span id="smsBtnText">Enviar por SMS</span>
         </button>
       </div>
     </form>
@@ -489,7 +484,7 @@
         
         // Asignar eventos a los botones
         document.getElementById('generarPdfBtn').addEventListener('click', generarPDF);
-        document.getElementById('enviarWhatsappBtn').addEventListener('click', enviarPorWhatsApp);
+        document.getElementById('enviarSmsBtn').addEventListener('click', enviarPorSMS);
         
         // Configurar manejo de archivos
         setupFileHandling();
@@ -518,7 +513,7 @@ Si el problema persiste, contacte al soporte técnico.`;
       
       // Deshabilitar botones
       document.getElementById('generarPdfBtn').disabled = true;
-      document.getElementById('enviarWhatsappBtn').disabled = true;
+      document.getElementById('enviarSmsBtn').disabled = true;
     }
 
     // Configurar manejo de archivos
@@ -610,7 +605,6 @@ Si el problema persiste, contacte al soporte técnico.`;
         if (!field.value.trim()) {
           field.style.borderColor = '#e74c3c';
           isValid = false;
-          // Desplazarse al primer campo con error
           if (isValid === false) {
             field.focus();
           }
@@ -635,13 +629,13 @@ Si el problema persiste, contacte al soporte técnico.`;
         document.getElementById('correo').focus();
       }
       
-      // Validar formato de número de WhatsApp
-      const whatsappNumber = document.getElementById('whatsapp-number')?.value;
-      if (whatsappNumber && !/^\+5939\d{8}$/.test(whatsappNumber.replace(/[^0-9+]/g, ''))) {
-        document.getElementById('whatsapp-number').style.borderColor = '#e74c3c';
+      // Validar formato de número de teléfono para SMS (E.164: +5939 seguido de 8 dígitos)
+      const telefono = document.getElementById('telefono').value;
+      if (telefono && !/^\+5939\d{8}$/.test(telefono.replace(/[^0-9+]/g, ''))) {
+        document.getElementById('telefono').style.borderColor = '#e74c3c';
         isValid = false;
-        document.getElementById('whatsapp-number').focus();
-        alert('El número de WhatsApp debe estar en formato E.164, ej: +593991234567');
+        document.getElementById('telefono').focus();
+        alert('El número de teléfono debe estar en formato E.164, ej: +593991234567');
       }
       
       if (!isValid) {
@@ -665,7 +659,7 @@ Si el problema persiste, contacte al soporte técnico.`;
         if (buttonId === 'generarPdfBtn') {
           textElement.textContent = 'Generar PDF';
         } else {
-          textElement.textContent = 'Enviar por WhatsApp';
+          textElement.textContent = 'Enviar por SMS';
         }
       }
     }
@@ -921,22 +915,22 @@ Si el problema persiste, contacte al soporte técnico.`;
       }
     }
 
-    // Enviar por WhatsApp
-    async function enviarPorWhatsApp() {
+    // Enviar por SMS
+    async function enviarPorSMS() {
       try {
-        showButtonLoading('enviarWhatsappBtn', true);
+        showButtonLoading('enviarSmsBtn', true);
         
         // Generar PDF primero
         const pdfBlob = await generarPDF();
         if (!pdfBlob) {
-          showButtonLoading('enviarWhatsappBtn', false);
+          showButtonLoading('enviarSmsBtn', false);
           return;
         }
         
         // Obtener datos del formulario
         const formData = getFormData();
         
-        // Crear mensaje para WhatsApp
+        // Crear mensaje para SMS (truncado a 160 caracteres)
         const mensaje = `*NUEVO REPORTE ARCH*\n\n` +
                        `Fecha: ${formData.fecha}\n` +
                        `Hora: ${formData.hora}\n` +
@@ -945,40 +939,39 @@ Si el problema persiste, contacte al soporte técnico.`;
                        `Contacto: ${formData.telefono}\n` +
                        `Tipo: ${formData.tipoEvento}\n` +
                        `Nivel: ${formData.nivel}\n\n` +
-                       `Detalle: ${formData.detalle.substring(0, 100)}${formData.detalle.length > 100 ? '...' : ''}\n\n` +
-                       `_El PDF con el reporte completo se ha generado y descargado automáticamente_`;
+                       `Detalle: ${formData.detalle.substring(0, 30)}${formData.detalle.length > 30 ? '...' : ''}\n\n` +
+                       `Reporte PDF generado`;
         
-        // Obtener número de WhatsApp
-        const phoneNumber = document.getElementById('whatsapp-number').value.replace(/[^0-9]/g, '') || '593123456789'; // Número predeterminado como respaldo
-        const encodedMessage = encodeURIComponent(mensaje);
-        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+        // Truncar mensaje a 160 caracteres
+        const smsMessage = mensaje.substring(0, 160);
         
-        // Intentar abrir WhatsApp
-        const newWindow = window.open(whatsappUrl, '_blank');
+        // Obtener número de teléfono
+        const phoneNumber = formData.telefono.replace(/[^0-9+]/g, '');
         
-        // Si no se abrió (puede ser bloqueado por el navegador)
+        // Crear URL para SMS
+        const encodedMessage = encodeURIComponent(smsMessage);
+        const smsUrl = `sms:${phoneNumber}?body=${encodedMessage}`;
+        
+        // Intentar abrir la app de SMS
+        const newWindow = window.open(smsUrl, '_self');
+        
+        // Fallback si no se abre la app de SMS
         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-          // Copiar mensaje al portapapeles como respaldo
           try {
-            await navigator.clipboard.writeText(mensaje);
-            
-            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-              alert('No se pudo abrir WhatsApp automáticamente. El mensaje se ha copiado al portapapeles. Por favor:\n1. Abra WhatsApp manualmente\n2. Pegue el mensaje (mantenga presionado y seleccione Pegar)\n3. Adjunte el PDF generado');
-            } else {
-              alert('No se pudo abrir WhatsApp automáticamente. El mensaje se ha copiado al portapapeles. Por favor:\n1. Abra WhatsApp Web/Desktop\n2. Pegue el mensaje (Ctrl+V)\n3. Adjunte el PDF generado');
-            }
+            await navigator.clipboard.writeText(smsMessage);
+            alert('No se pudo abrir la aplicación de SMS automáticamente. El mensaje se ha copiado al portapapeles. Por favor:\n1. Abra la aplicación de SMS en su dispositivo\n2. Pegue el mensaje (mantenga presionado y seleccione Pegar)\n3. Envíe el mensaje a ' + phoneNumber);
           } catch (err) {
             console.error('Error al copiar al portapapeles:', err);
-            alert('No se pudo abrir WhatsApp automáticamente ni copiar el mensaje. Por favor:\n1. Abra WhatsApp manualmente\n2. Escriba el siguiente mensaje:\n\n' + mensaje + '\n\n3. Adjunte el PDF generado');
+            alert('No se pudo abrir la aplicación de SMS ni copiar el mensaje. Por favor:\n1. Abra la aplicación de SMS manualmente\n2. Escriba el siguiente mensaje:\n\n' + smsMessage + '\n\n3. Envíe el mensaje a ' + phoneNumber);
           }
         }
         
-        showButtonLoading('enviarWhatsappBtn', false);
+        showButtonLoading('enviarSmsBtn', false);
         
       } catch (error) {
-        console.error('Error al enviar por WhatsApp:', error);
-        alert('Error al preparar el envío por WhatsApp: ' + error.message);
-        showButtonLoading('enviarWhatsappBtn', false);
+        console.error('Error al enviar por SMS:', error);
+        alert('Error al preparar el envío por SMS: ' + error.message);
+        showButtonLoading('enviarSmsBtn', false);
       }
     }
   </script>
